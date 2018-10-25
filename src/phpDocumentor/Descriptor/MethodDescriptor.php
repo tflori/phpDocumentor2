@@ -284,4 +284,94 @@ class MethodDescriptor extends DescriptorAbstract implements Interfaces\MethodIn
 
         return null;
     }
+
+    /**
+     * Get the signature of method
+     *
+     * If the signature is longer than $maxLength it returns with linebreaks.
+     *
+     * @param int $maxLength
+     * @return string
+     */
+    public function getSignature($maxLength = 0)
+    {
+        $signature = 'function ' . $this->getName() . '(';
+
+        if ($this->getArguments()->count() > 0) {
+            $args = [];
+
+            /** @var ArgumentDescriptor $argument */
+            foreach ($this->getArguments() as $argument) {
+                $arg = $argument->getName();
+
+                if ($argument->isByReference()) {
+                    $arg = '&' . $arg;
+                }
+
+                if ($argument->getTypes()->count() > 0 && $argument->getTypes()->get(0)  != 'mixed') {
+                    $arg = $argument->getTypes()->get(0) . ' ' . $arg;
+                }
+
+                if ($argument->getDefault()) {
+                    $arg .= ' = ' . $argument->getDefault();
+                }
+
+                $args[] = $arg;
+            }
+
+            $signature .= ' ' . implode(', ' , $args) . ' ';
+        }
+
+        $signature .= ')';
+
+        if ($this->isStatic()) {
+            $signature = 'static ' . $signature;
+        }
+
+        $signature = $this->getVisibility() . ' ' . $signature;
+
+        if ($this->isAbstract()) {
+            $signature = 'abstract ' . $signature;
+        }
+
+        if ($this->isFinal()) {
+            $signature = 'final ' . $signature;
+        }
+
+        if ($this->getResponse()) {
+            $types = $this->getResponse()->getTypes()->getAll();
+
+            if (reset($types) == 'self') {
+                $signature .= ': ' . $this->getParent()->getName();
+            } else {
+                $signature .= ': ' . implode('|', $types);
+            }
+        } elseif ($this->name === '__construct') {
+            $signature .= ': ' . $this->getParent()->getName();
+        }
+
+        if ($maxLength &&
+            $maxLength < strlen($signature) &&
+            preg_match('/^(.*)\( (.*) \)($|:.*$)/', $signature, $match)
+        ) {
+            $lines = [$match[1] . '('];
+
+            $line = '    ';
+            foreach (explode(', ', $match[2]) as $arg) {
+                if (strlen($line) + strlen($arg) + 1 >= $maxLength) {
+                    $lines[] = $line;
+                    $line = '    ';
+                }
+                $line .= $arg . ', ';
+            }
+
+            $lines[] = substr($line, 0, -2);
+
+            $lines[] = ')' . $match[3];
+
+            return implode("\n", $lines);
+        }
+
+        return $signature;
+    }
 }
