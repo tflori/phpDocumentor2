@@ -109,6 +109,32 @@ class Collection implements \Countable, \IteratorAggregate, \ArrayAccess
     }
 
     /**
+     * sort the collection by $property
+     *
+     * @param string $property
+     * @param string $dir
+     * @return Collection
+     */
+    public function sortBy($property, $dir = 'asc')
+    {
+        uasort($this->items, function ($a, $b) use ($property, $dir) {
+            $method = 'get' . ucfirst($property);
+            if (isset($a->$property)) {
+                $aValue = $a->$property;
+                $bValue = $b->$property;
+            } elseif (method_exists($a, $method) && is_callable(array($a, $method))) {
+                $aValue = call_user_func(array($a, $method));
+                $bValue = call_user_func(array($b, $method));
+            } else {
+                throw new \Exception('unknown property $property for sorting');
+            }
+            return $dir === 'desc' ? strcmp($bValue, $aValue) : strcmp($aValue, $bValue);
+        });
+
+        return $this;
+    }
+
+    /**
      * Empties the collection.
      *
      * @return void
