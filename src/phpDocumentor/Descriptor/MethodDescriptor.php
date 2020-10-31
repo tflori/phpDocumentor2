@@ -298,7 +298,7 @@ class MethodDescriptor extends DescriptorAbstract implements Interfaces\MethodIn
         $signature = 'function ' . $this->getName() . '(';
 
         if ($this->getArguments()->count() > 0) {
-            $args = [];
+            $args = array();
 
             /** @var ArgumentDescriptor $argument */
             foreach ($this->getArguments() as $argument) {
@@ -308,8 +308,8 @@ class MethodDescriptor extends DescriptorAbstract implements Interfaces\MethodIn
                     $arg = '&' . $arg;
                 }
 
-                if ($argument->getTypes()->count() > 0 && $argument->getTypes()->get(0)  != 'mixed') {
-                    $arg = $argument->getTypes()->get(0) . ' ' . $arg;
+                if ($argument->getTypes()->count() == 1 && $argument->getTypes()->get(0)  != 'mixed') {
+                    $arg = ltrim($argument->getTypes()->get(0), '\\') . ' ' . $arg;
                 }
 
                 if ($argument->getDefault()) {
@@ -340,21 +340,16 @@ class MethodDescriptor extends DescriptorAbstract implements Interfaces\MethodIn
 
         if ($this->getResponse()) {
             $types = $this->getResponse()->getTypes()->getAll();
-
-            if (reset($types) == 'self') {
-                $signature .= ': ' . $this->getParent()->getName();
-            } else {
-                $signature .= ': ' . implode('|', $types);
-            }
-        } elseif ($this->name === '__construct') {
-            $signature .= ': ' . $this->getParent()->getName();
+            $signature .= ': ' . implode('|', array_map(function ($type) {
+                return ltrim($type, '\\');
+            }, $types));
         }
 
         if ($maxLength &&
             $maxLength < strlen($signature) &&
             preg_match('/^(.*)\( (.*) \)($|:.*$)/', $signature, $match)
         ) {
-            $lines = [$match[1] . '('];
+            $lines = array($match[1] . '(');
 
             $line = '    ';
             foreach (explode(', ', $match[2]) as $arg) {
