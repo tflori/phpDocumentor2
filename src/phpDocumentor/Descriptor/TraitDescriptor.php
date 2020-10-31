@@ -25,6 +25,9 @@ class TraitDescriptor extends DescriptorAbstract implements Interfaces\TraitInte
     /** @var Collection $usedTraits */
     protected $usedTraits;
 
+    /** @var ClassDescriptor */
+    protected $currentClass;
+
     /**
      * Initializes the all properties representing a collection with a new Collection object.
      */
@@ -58,7 +61,14 @@ class TraitDescriptor extends DescriptorAbstract implements Interfaces\TraitInte
      */
     public function getInheritedMethods()
     {
-        return new Collection();
+        $inhertitedMethods = new Collection();
+
+        /** @var TraitDescriptor $usedTrait */
+        foreach ($this->getUsedTraits() as $usedTrait) {
+            $inhertitedMethods->merge($usedTrait->getInheritedMethods());
+        }
+
+        return $inhertitedMethods;
     }
 
     /**
@@ -173,5 +183,15 @@ class TraitDescriptor extends DescriptorAbstract implements Interfaces\TraitInte
     public function getUsedTraits()
     {
         return $this->usedTraits;
+    }
+
+    public function setCurrentClass(ClassDescriptor $class)
+    {
+        $this->currentClass = $class;
+    }
+
+    public function getCurrentClass()
+    {
+        return $this->currentClass;
     }
 }

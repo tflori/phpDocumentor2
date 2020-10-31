@@ -135,6 +135,17 @@ class Collection implements \Countable, \IteratorAggregate, \ArrayAccess
     }
 
     /**
+     * apply $callback on each element and return a new Collection
+     *
+     * @param callable $callback
+     * @return Collection
+     */
+    public function map(callable $callback)
+    {
+        return new static(array_map($callback, $this->items));
+    }
+
+    /**
      * Empties the collection.
      *
      * @return void

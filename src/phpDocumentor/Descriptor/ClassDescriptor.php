@@ -343,7 +343,13 @@ class ClassDescriptor extends DescriptorAbstract implements Interfaces\ClassInte
      */
     public function getUsedTraits()
     {
-        return $this->usedTraits;
+        $self = $this;
+        return $this->usedTraits->map(function ($trait) use ($self) {
+            if ($trait instanceof TraitDescriptor) {
+                $trait->setCurrentClass($self);
+            }
+            return $trait;
+        });
     }
 
     public function getInheritedElement()
