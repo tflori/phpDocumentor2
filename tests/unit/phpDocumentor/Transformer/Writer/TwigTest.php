@@ -29,6 +29,7 @@ use Prophecy\Argument;
 use Prophecy\PhpUnit\ProphecyTrait;
 use Prophecy\Prophecy\ObjectProphecy;
 use Twig\Environment;
+use Twig\Extension\OptimizerExtension;
 use Twig\Loader\ArrayLoader;
 
 /**
@@ -121,6 +122,119 @@ final class TwigTest extends TestCase
 
         $this->assertFileExists($targetDir . '/index.html');
         $this->assertStringEqualsFile($targetDir . '/index.html', 'This is a twig file');
+    }
+
+    public function testLoadsTwigExtensionsGivenAsParameter()
+    {
+        $this->template->setParameter('twig-extension', new Template\Parameter(
+            'twig-extension',
+            'phpDocumentor\TestData\extensions\TwigExtension'
+        ));
+
+        $environment = $this->prophesize(Environment::class);
+        $environment->addExtension(Argument::type('phpDocumentor\TestData\extensions\TwigExtension'))->shouldBeCalled();
+
+        $this->environmentFactory->create(Argument::cetera())->willReturn($environment->reveal());
+
+        $this->writer->initialize(
+            self::faker()->projectDescriptor(),
+            self::faker()->apiSetDescriptor(),
+            $this->template
+        );
+    }
+
+    public function testLoadsTheFileFromTemplatePath()
+    {
+        $this->sourceFolder->addChild(
+            vfsStream::newFile('extensions/MyExtension.php')->withContent(
+                '<?php class MyExtension extends \Twig\Extension\AbstractExtension {}'
+            )
+        );
+
+        $this->template->setParameter('twig-extension', new Template\Parameter(
+            'twig-extension',
+            'extensions/MyExtension.php'
+        ));
+
+        $environment = $this->prophesize(Environment::class);
+        $environment->addExtension(Argument::that(fn($i) => get_class($i) === 'MyExtension'))->shouldBeCalled();
+
+        $this->environmentFactory->create(Argument::cetera())->willReturn($environment->reveal());
+
+        $this->writer->initialize(
+            self::faker()->projectDescriptor(),
+            self::faker()->apiSetDescriptor(),
+            $this->template
+        );
+    }
+
+    public function testUsersADifferentClassThanFilename()
+    {
+        $this->sourceFolder->addChild(
+            vfsStream::newFile('extension1.php')->withContent(
+                '<?php class MyOtherExtension extends \Twig\Extension\AbstractExtension {}'
+            )
+        );
+
+        $this->template->setParameter('twig-extension', new Template\Parameter(
+            'twig-extension',
+            'MyOtherExtension@extension1.php'
+        ));
+
+        $environment = $this->prophesize(Environment::class);
+        $environment->addExtension(Argument::that(fn($i) => get_class($i) === 'MyOtherExtension'))->shouldBeCalled();
+
+        $this->environmentFactory->create(Argument::cetera())->willReturn($environment->reveal());
+
+        $this->writer->initialize(
+            self::faker()->projectDescriptor(),
+            self::faker()->apiSetDescriptor(),
+            $this->template
+        );
+    }
+
+    public function testIgnoresPreviouslyRegisteredExtensions()
+    {
+        $this->template->setParameter('twig-extension', new Template\Parameter(
+            'twig-extension',
+            OptimizerExtension::class
+        ));
+
+        $environment = $this->prophesize(Environment::class);
+        $environment->addExtension(Argument::type(OptimizerExtension::class))->shouldBeCalled()
+            ->willThrow(new \LogicException('Unable to register extension "%s" as it is already registered.'));
+
+        $this->environmentFactory->create(Argument::cetera())->willReturn($environment->reveal());
+
+        $this->writer->initialize(
+            self::faker()->projectDescriptor(),
+            self::faker()->apiSetDescriptor(),
+            $this->template
+        );
+    }
+
+    public function testPassingNonTwigExtensionFails()
+    {
+        $this->sourceFolder->addChild(
+            vfsStream::newFile('extension2.php')->withContent(
+                '<?php class MyUselessClass {}'
+            )
+        );
+
+        $environment = $this->prophesize(Environment::class);
+        $this->environmentFactory->create(Argument::cetera())->willReturn($environment->reveal());
+
+        $this->template->setParameter('twig-extension', new Template\Parameter(
+            'twig-extension',
+            'MyUselessClass@extension2.php'
+        ));
+
+        $this->expectException(\TypeError::class);
+        $this->writer->initialize(
+            self::faker()->projectDescriptor(),
+            self::faker()->apiSetDescriptor(),
+            $this->template
+        );
     }
 
     private function givenATwigEnvironmentFactoryWithTemplates(array $templates): void

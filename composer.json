@@ -14,6 +14,9 @@
             "phpDocumentor\\JsonPath\\" : [
                 "incubator/json-path/tests/unit/"
             ],
+            "phpDocumentor\\TestData\\": [
+                "tests/data/"
+            ],
             "phpDocumentor\\": [
                 "tests/unit/phpDocumentor/",
                 "tests/integration/phpDocumentor/",

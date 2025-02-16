@@ -118,6 +118,60 @@ final class Twig extends WriterAbstract implements Initializable, ProjectDescrip
         Template $template,
     ): void {
         $this->environment = $this->environmentFactory->create($project, $documentationSet, $template);
+
+        foreach ($template->getParameters() as $key => $value) {
+            if (str_starts_with($key, 'twig-extension')) {
+                [$file, $class] = $this->parseTwigExtensionDefinition($value->value());
+
+                if ($file !== null) {
+                    $pathPrefix = $template->files()->getFilesystem('template')->getAdapter()->getPathPrefix();
+                    $path = $pathPrefix . '/' . $file;
+                    if (file_exists($path)) {
+                        require_once $path;
+                    }
+                }
+
+                if (class_exists($class)) {
+                    try {
+                        $this->environment->addExtension(new $class());
+                    } catch (\LogicException $e) {
+                        // If the extension is already registered, we can ignore the exception
+                        if (!str_contains($e->getMessage(), 'is already registered.')) {
+                            throw $e;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Parses a Twig extension definition and returns the file and class name.
+     *
+     * The definition can be in the following formats:
+     * - `'className@filename.php'` - load <filename.php> relative to the template directory and instantiate <className>
+     *     as an extension.
+     * - `'path/to/filename.php'` - load <path/to/filename.php> relative to the template directory and instantiate the
+     *     class <filename> as an extension.
+     * - `'className'` - instantiate <className> as an extension (autoloader?)
+     *
+     * @param string $definition
+     * @return array{string|null, string} [file, class]
+     */
+    public function parseTwigExtensionDefinition(string $definition): array
+    {
+        if (str_contains($definition, '@')) {
+            [$class, $file] = explode('@', $definition, 2);
+            return [$file, $class];
+        }
+
+        if (str_ends_with($definition, '.php')) {
+            $file = $definition;
+            $class = basename($file, '.php');
+            return [$file, $class];
+        }
+
+        return [null, $definition];
     }
 
     /**
